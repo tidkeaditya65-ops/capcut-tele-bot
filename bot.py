@@ -1,5 +1,7 @@
 import logging
 import threading
+import time
+import requests
 from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -12,22 +14,35 @@ from telegram.ext import (
     filters,
 )
 
-# --- FLASK WEB SERVER (For Render Free Tier) ---
+# --- FLASK WEB SERVER ---
 app_flask = Flask(__name__)
 
 @app_flask.route('/')
 def home():
-    return "Bot is running live!"
+    return "Bot is running live 24/7!"
 
 def run_flask():
     app_flask.run(host="0.0.0.0", port=10000)
 
-# --- BOT CONFIGURATION ---
+# --- CONFIGURATION ---
 BOT_TOKEN = "8588533313:AAFtCfJaLI19ilw30jmztiDQz6Uq7Sc0dcM"
 ADMIN_ID = 8313247547
 UPI_ID = "7276052050@fam"
 AMOUNT = 60
 FILE_LINK = "https://t.me/+P6Uhtt1OuEIxZWU1"
+
+# Render App Live URL
+RENDER_APP_URL = "https://capcut-tele-bot.onrender.com"
+
+# --- SELF PING FUNCTION (Every 2 Minutes Keep-Alive) ---
+def keep_alive():
+    while True:
+        time.sleep(120)  # 2 Minutes
+        try:
+            response = requests.get(RENDER_APP_URL)
+            print(f"Self-ping status: {response.status_code}")
+        except Exception as e:
+            print(f"Self-ping failed: {e}")
 
 QR_CODE_URL = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa={UPI_ID}%26pn=Merchant%26am={AMOUNT}%26cu=INR"
 
@@ -126,7 +141,11 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 def main():
+    # Start Web Server
     threading.Thread(target=run_flask, daemon=True).start()
+    
+    # Start Continuous Keep-Alive Thread
+    threading.Thread(target=keep_alive, daemon=True).start()
 
     app = Application.builder().token(BOT_TOKEN).build()
 
@@ -142,7 +161,7 @@ def main():
     app.add_handler(conv_handler)
     app.add_handler(CallbackQueryHandler(button_click))
 
-    print("Bot start ho gaya hai...")
+    print("Bot active on Render...")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
