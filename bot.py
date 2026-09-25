@@ -1,4 +1,4 @@
-    import logging
+import logging
 import threading
 from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -12,12 +12,12 @@ from telegram.ext import (
     filters,
 )
 
-# --- FLASK WEB SERVER (Render Free Tier Ke Liye) ---
+# --- FLASK WEB SERVER (For Render Free Tier) ---
 app_flask = Flask(__name__)
 
 @app_flask.route('/')
 def home():
-    return "Bot is running live on Render Free Tier!"
+    return "Bot is running live!"
 
 def run_flask():
     app_flask.run(host="0.0.0.0", port=10000)
@@ -126,7 +126,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 def main():
-    # Start Flask server in background thread
     threading.Thread(target=run_flask, daemon=True).start()
 
     app = Application.builder().token(BOT_TOKEN).build()
