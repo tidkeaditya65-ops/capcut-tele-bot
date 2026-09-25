@@ -1,4 +1,6 @@
-import logging
+    import logging
+import threading
+from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -10,17 +12,25 @@ from telegram.ext import (
     filters,
 )
 
-# Configuration Details
+# --- FLASK WEB SERVER (Render Free Tier Ke Liye) ---
+app_flask = Flask(__name__)
+
+@app_flask.route('/')
+def home():
+    return "Bot is running live on Render Free Tier!"
+
+def run_flask():
+    app_flask.run(host="0.0.0.0", port=10000)
+
+# --- BOT CONFIGURATION ---
 BOT_TOKEN = "8588533313:AAFtCfJaLI19ilw30jmztiDQz6Uq7Sc0dcM"
 ADMIN_ID = 8313247547
 UPI_ID = "7276052050@fam"
 AMOUNT = 60
 FILE_LINK = "https://t.me/+P6Uhtt1OuEIxZWU1"
 
-# QR Code Generator
 QR_CODE_URL = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa={UPI_ID}%26pn=Merchant%26am={AMOUNT}%26cu=INR"
 
-# States
 WAITING_FOR_SCREENSHOT = 1
 WAITING_FOR_UTR = 2
 
@@ -116,6 +126,9 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 def main():
+    # Start Flask server in background thread
+    threading.Thread(target=run_flask, daemon=True).start()
+
     app = Application.builder().token(BOT_TOKEN).build()
 
     conv_handler = ConversationHandler(
