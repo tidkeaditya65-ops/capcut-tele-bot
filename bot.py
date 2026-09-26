@@ -86,8 +86,8 @@ async def receive_utr(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Simplified Callback Data
     keyboard = [
         [
-            InlineKeyboardButton("Verify & Send File", callback_data=f"approve:{user.id}"),
-            InlineKeyboardButton("Reject", callback_data=f"decline:{user.id}")
+            InlineKeyboardButton("Verify & Send File", callback_data=f"approve_{user.id}"),
+            InlineKeyboardButton("Reject", callback_data=f"decline_{user.id}")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -110,45 +110,37 @@ async def receive_utr(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     return ConversationHandler.END
 
-async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     data = query.data
-    if ":" not in data:
-        return
-
-    action, target_user_id = data.split(":")
+    action, target_user_id = data.split("_")
     target_user_id = int(target_user_id)
 
     if action == "approve":
-        try:
-            await context.bot.send_message(
-                chat_id=target_user_id, 
-                text=f"✅ Aapka payment successfully verify ho gaya hai!\n\n📁 **Aapki File ka Channel Link:**\n{FILE_LINK}"
-            )
-            await query.edit_message_caption(
-                caption=f"{query.message.caption}\n\n✅ **STATUS: Verified & Link Sent!**",
-                parse_mode="Markdown"
-            )
-        except Exception as e:
-            await query.edit_message_caption(
-                caption=f"{query.message.caption}\n\n⚠️ **Error:** Link nahi bhej paye! ({e})",
-                parse_mode="Markdown"
-            )
+        # 1. Target user ko file link bhejna
+        await context.bot.send_message(
+            chat_id=target_user_id,
+            text=f"✅ Aapka payment successfully verify ho gaya hai!\n\n📁 **Aapki File ka Channel Link:**\n{FILE_LINK}"
+        )
+        # 2. Admin chat ka caption update karna
+        await query.edit_message_caption(
+            caption=f"{query.message.caption}\n\n✅ **STATUS: Verified & Link Sent!**",
+            parse_mode="Markdown"
+        )
 
     elif action == "decline":
-        try:
-            await context.bot.send_message(
-                chat_id=target_user_id, 
-                text="❌ Aapka payment verify nahi ho paya. Kripya sahi UTR aur Screenshot ke sath dobara koshish karein."
-            )
-            await query.edit_message_caption(
-                caption=f"{query.message.caption}\n\n❌ **STATUS: Rejected!**",
-                parse_mode="Markdown"
-            )
-        except Exception as e:
-            pass
+        # 1. Target user ko reject message bhejna
+        await context.bot.send_message(
+            chat_id=target_user_id,
+            text="❌ Aapka payment verify nahi ho paya. Kripya sahi UTR aur Screenshot ke sath dobara koshish karein."
+        )
+        # 2. Admin chat ka caption update karna
+        await query.edit_message_caption(
+            caption=f"{query.message.caption}\n\n❌ **STATUS: Rejected!**",
+            parse_mode="Markdown"
+        )
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Process cancel ho gaya hai.")
@@ -167,11 +159,12 @@ def main():
             WAITING_FOR_UTR: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_utr)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
+        per_message=False
     )
 
-    # Callback Query Handler ko Conversation Handler ke pehle register karein
-    app.add_handler(CallbackQueryHandler(button_click))
+    # Handlers Registration
     app.add_handler(conv_handler)
+    app.add_handler(CallbackQueryHandler(handle_buttons, pattern="^(approve|decline)_"))
 
     print("Bot active on Render...")
     app.run_polling(drop_pending_updates=True)
