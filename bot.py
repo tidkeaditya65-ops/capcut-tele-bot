@@ -31,13 +31,11 @@ UPI_ID = "7276052050@fam"
 AMOUNT = 60
 FILE_LINK = "https://t.me/+P6Uhtt1OuEIxZWU1"
 
-# Render App Live URL
 RENDER_APP_URL = "https://capcut-tele-bot.onrender.com"
 
-# --- SELF PING FUNCTION (Every 2 Minutes Keep-Alive) ---
 def keep_alive():
     while True:
-        time.sleep(120)  # 2 Minutes
+        time.sleep(120)
         try:
             response = requests.get(RENDER_APP_URL)
             print(f"Self-ping status: {response.status_code}")
@@ -122,29 +120,44 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target_user_id = int(data[1])
 
     if action == "verify":
-        await query.edit_message_caption(caption=f"{query.message.caption}\n\n✅ **Verified & Link Sent!**")
-        
-        await context.bot.send_message(
-            chat_id=target_user_id, 
-            text=f"✅ Aapka payment successfully verify ho gaya hai!\n\n📁 **Aapki File ka Channel Link:** {FILE_LINK}"
-        )
+        try:
+            # User ko private link message me bhejna
+            await context.bot.send_message(
+                chat_id=target_user_id, 
+                text=f"✅ Aapka payment successfully verify ho gaya hai!\n\n📁 **Aapki File ka Channel Link:**\n{FILE_LINK}"
+            )
+            
+            # Admin caption update karna
+            await query.edit_message_caption(
+                caption=f"{query.message.caption}\n\n✅ **STATUS: Verified & Link Sent to User!**",
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logging.error(f"Error sending link: {e}")
+            await context.bot.send_message(
+                chat_id=ADMIN_ID,
+                text=f"❌ Error: User ko link nahi bhej paye! Unka Bot block ho sakta hai.\nDetails: {e}"
+            )
 
     elif action == "reject":
-        await query.edit_message_caption(caption=f"{query.message.caption}\n\n❌ **Rejected!**")
-        await context.bot.send_message(
-            chat_id=target_user_id, 
-            text="❌ Aapka payment verify nahi ho paya. Kripya sahi UTR aur Screenshot ke sath dobara koshish karein."
-        )
+        try:
+            await context.bot.send_message(
+                chat_id=target_user_id, 
+                text="❌ Aapka payment verify nahi ho paya. Kripya sahi UTR aur Screenshot ke sath dobara koshish karein."
+            )
+            await query.edit_message_caption(
+                caption=f"{query.message.caption}\n\n❌ **STATUS: Rejected!**",
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logging.error(f"Error sending reject status: {e}")
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Process cancel ho gaya hai.")
     return ConversationHandler.END
 
 def main():
-    # Start Web Server
     threading.Thread(target=run_flask, daemon=True).start()
-    
-    # Start Continuous Keep-Alive Thread
     threading.Thread(target=keep_alive, daemon=True).start()
 
     app = Application.builder().token(BOT_TOKEN).build()
