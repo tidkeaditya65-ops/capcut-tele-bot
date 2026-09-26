@@ -1,0 +1,13 @@
+name: Keep Alive
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # Har 5 minute me automatic request bhejega
+  workflow_dispatch:  # Manual run button ke liye
+
+jobs:
+_  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pinging Render Web Service
+        run: curl -i https://capcut-tele-bot.onrender.com
