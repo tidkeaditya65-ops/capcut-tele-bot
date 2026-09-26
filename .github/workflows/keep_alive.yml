@@ -2,11 +2,11 @@ name: Keep Alive
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Har 5 minute me automatic request bhejega
-  workflow_dispatch:  # Manual run button ke liye
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 jobs:
-_  ping:
+  ping:
     runs-on: ubuntu-latest
     steps:
       - name: Pinging Render Web Service
