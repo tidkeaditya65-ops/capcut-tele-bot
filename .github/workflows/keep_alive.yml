@@ -11,3 +11,4 @@ _  ping:
     steps:
       - name: Pinging Render Web Service
         run: curl -i https://capcut-tele-bot.onrender.com
+        
