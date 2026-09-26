@@ -37,10 +37,9 @@ def keep_alive():
     while True:
         time.sleep(120)
         try:
-            response = requests.get(RENDER_APP_URL)
-            print(f"Self-ping status: {response.status_code}")
-        except Exception as e:
-            print(f"Self-ping failed: {e}")
+            requests.get(RENDER_APP_URL)
+        except Exception:
+            pass
 
 QR_CODE_URL = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa={UPI_ID}%26pn=Merchant%26am={AMOUNT}%26cu=INR"
 
@@ -78,17 +77,17 @@ async def receive_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def receive_utr(update: Update, context: ContextTypes.DEFAULT_TYPE):
     utr_text = update.message.text
-    context.user_data["utr"] = utr_text
     user = update.effective_user
 
     await update.message.reply_text(
         "Wait Until Your Payment Is Verified , You Will Receive Your File Whithin 1 Hour"
     )
 
+    # Simplified Callback Data
     keyboard = [
         [
-            InlineKeyboardButton("Verify & Send File", callback_data=f"verify_{user.id}"),
-            InlineKeyboardButton("Reject", callback_data=f"reject_{user.id}")
+            InlineKeyboardButton("Verify & Send File", callback_data=f"approve:{user.id}"),
+            InlineKeyboardButton("Reject", callback_data=f"decline:{user.id}")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -115,31 +114,30 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    data = query.data.split("_")
-    action = data[0]
-    target_user_id = int(data[1])
+    data = query.data
+    if ":" not in data:
+        return
 
-    if action == "verify":
+    action, target_user_id = data.split(":")
+    target_user_id = int(target_user_id)
+
+    if action == "approve":
         try:
-            # User ko private link message me bhejna
             await context.bot.send_message(
                 chat_id=target_user_id, 
                 text=f"✅ Aapka payment successfully verify ho gaya hai!\n\n📁 **Aapki File ka Channel Link:**\n{FILE_LINK}"
             )
-            
-            # Admin caption update karna
             await query.edit_message_caption(
-                caption=f"{query.message.caption}\n\n✅ **STATUS: Verified & Link Sent to User!**",
+                caption=f"{query.message.caption}\n\n✅ **STATUS: Verified & Link Sent!**",
                 parse_mode="Markdown"
             )
         except Exception as e:
-            logging.error(f"Error sending link: {e}")
-            await context.bot.send_message(
-                chat_id=ADMIN_ID,
-                text=f"❌ Error: User ko link nahi bhej paye! Unka Bot block ho sakta hai.\nDetails: {e}"
+            await query.edit_message_caption(
+                caption=f"{query.message.caption}\n\n⚠️ **Error:** Link nahi bhej paye! ({e})",
+                parse_mode="Markdown"
             )
 
-    elif action == "reject":
+    elif action == "decline":
         try:
             await context.bot.send_message(
                 chat_id=target_user_id, 
@@ -150,7 +148,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="Markdown"
             )
         except Exception as e:
-            logging.error(f"Error sending reject status: {e}")
+            pass
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Process cancel ho gaya hai.")
@@ -171,8 +169,9 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
-    app.add_handler(conv_handler)
+    # Callback Query Handler ko Conversation Handler ke pehle register karein
     app.add_handler(CallbackQueryHandler(button_click))
+    app.add_handler(conv_handler)
 
     print("Bot active on Render...")
     app.run_polling(drop_pending_updates=True)
